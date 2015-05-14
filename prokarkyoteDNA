@@ -1,0 +1,332 @@
+'''
+Determination of prokaryote DNA
+Goal: distinguish protein coding vs non coding
+1) Locate open reading frames (orf): Take the sequence and break it up into the three standard reading 
+frames and look for orfs equal or greater than 50 amino acids.  If no orfs found in the standard reading
+frames, take the reverse complement of the DNA and break it up into three reading frames.  If no orfs
+found in the sequence, then no gene is present.
+
+2)  Locate the promoter sequence.  Identify the TATA (TATAAT) box located -10 bp from the start codon
+(the start codon site is +1).  Also identify the Shine-Dalgarno sequence AGGAGG which is -8 bp from
+the start codon.  Also locate the -35 consensus sequence TTGACA upstream.
+
+Prokaryotic DNA determination steps in the code
+1. Using a loop, look for -35 CS, -10 CS, and Shine-Dalgarno sequence concurrently
+    a. if -35 CS is found, look for -10 CS 15-20 bp ahead --CHECK--
+        1. if -10 CS is found, look for SD sequence 5-10 bp ahead --CHECK--
+        2. if -10 CS is not found, look for SD sequence 17-22 bp ahead of -35 CS --CHECK--
+        3. if SD sequence is found, look for start codon 8-10 bp ahead --CHECK--
+        4. if SD sequence is not found, look for start codon 32-38 bp ahead of -35 CS --CHECK--
+        5. if a start codon is found, determine ORF. anything less than 150 bp is dismissed --CHECK--
+        6. if a start codon is not found, continue searching current DNA sequence (do nothing) --CHECK--
+    b. if -10 CS is found, look for SD sequence 5-10 bp ahead --CHECK--
+        1. if SD sequence is found, look for start codon 5-9 bp ahead --CHECK--
+        2. if SD sequence is not found, look for start codon 22-28 bp ahead of -10 CS --CHECK--
+        3. if a start codon is not found, continue searching current DNA sequence (do nothing) --CHECK--
+    c. if SD sequence is found, look for start codon 5-9 bp ahead --CHECK--
+        1. if start codon is found, determine ORF. anything less than 150 bp is dismissed --CHECK--
+        2. if start codon is not found, continue searching current DNA sequence (do nothing) --CHECK--
+        
+    d. if no identifier is found, search for a start codon from the beginning
+        1. if a start codon is found, determine ORF. anything less than 150 bp is dismissed
+'''
+
+def geneFinder(DNA):
+
+    basecomps = {'A' : 'T', 'C' : 'G', 'T' : 'A', 'G' : 'C'}
+
+
+    """
+    The following is a dictionary data structure that contains all the codons needed for translation and
+    their corresponding amino acids in their one letter abbreviation form. Also includes the Stop codons
+    which are abbreviated to "_"
+    """
+    code = {'UCA' : 'S',    # Serine
+            'UCC' : 'S',    # Serine
+            'UCG' : 'S',    # Serine
+            'UCU' : 'S',    # Serine
+            'UUC' : 'F',    # Phenylalanine
+            'UUU' : 'F',    # Phenylalanine
+            'UUA' : 'L',    # Leucine
+            'UUG' : 'L',    # Leucine
+            'UAC' : 'Y',    # Tyrosine
+            'UAU' : 'Y',    # Tyrosine
+            'UAA' : '_',    # Stop
+            'UAG' : '_',    # Stop
+            'UGC' : 'C',    # Cysteine
+            'UGU' : 'C',    # Cysteine
+            'UGA' : '_',    # Stop
+            'UGG' : 'W',    # Tryptophan
+            'CUA' : 'L',    # Leucine
+            'CUC' : 'L',    # Leucine
+            'CUG' : 'L',    # Leucine
+            'CUU' : 'L',    # Leucine
+            'CCA' : 'P',    # Proline
+            'CCC' : 'P',    # Proline
+            'CCG' : 'P',    # Proline
+            'CCU' : 'P',    # Proline
+            'CAC' : 'H',    # Histidine
+            'CAU' : 'H',    # Histidine
+            'CAA' : 'Q',    # Glutamine
+            'CAG' : 'Q',    # Glutamine
+            'CGA' : 'R',    # Arginine
+            'CGC' : 'R',    # Arginine
+            'CGG' : 'R',    # Arginine
+            'CGU' : 'R',    # Arginine
+            'AUA' : 'I',    # Isoleucine
+            'AUC' : 'I',    # Isoleucine
+            'AUU' : 'I',    # Isoleucine
+            'AUG' : 'M',    # Methionine
+            'ACA' : 'T',    # Threonine
+            'ACC' : 'T',    # Threonine
+            'ACG' : 'T',    # Threonine
+            'ACU' : 'T',    # Threonine
+            'AAC' : 'N',    # Asparagine
+            'AAU' : 'N',    # Asparagine
+            'AAA' : 'K',    # Lysine
+            'AAG' : 'K',    # Lysine
+            'AGC' : 'S',    # Serine
+            'AGU' : 'S',    # Serine
+            'AGA' : 'R',    # Arginine
+            'AGG' : 'R',    # Arginine
+            'GUA' : 'V',    # Valine
+            'GUC' : 'V',    # Valine
+            'GUG' : 'V',    # Valine
+            'GUU' : 'V',    # Valine
+            'GCA' : 'A',    # Alanine
+            'GCC' : 'A',    # Alanine
+            'GCG' : 'A',    # Alanine
+            'GCU' : 'A',    # Alanine
+            'GAC' : 'D',    # Aspartic Acid
+            'GAU' : 'D',    # Aspartic Acid
+            'GAA' : 'E',    # Glutamic Acid
+            'GAG' : 'E',    # Glutamic Acid
+            'GGA' : 'G',    # Glycine
+            'GGC' : 'G',    # Glycine
+            'GGG' : 'G',    # Glycine
+            'GGU' : 'G'}    # Glycine
+
+    switch = False
+    
+    pos = 0
+    thirtyFiveCS = 'TTGACA'
+    tenCS = 'TATAAT'
+    sdCS = 'AGGAGG'
+    startCodon = 'AUG'
+    stopCodon = '_'
+    ORF = 0
+    ORFlist = []
+    ORFthreshold = 150
+
+    #while it is possible to hit the ORF threshold
+    while pos < len(DNA) - 190:
+        #if the -35 CS is found
+        if DNA[pos : pos + len(thirtyFiveCS)] == thirtyFiveCS:
+            pos += len(thirtyFiveCS)
+            #if the -10 CS is found
+            if tenCS in DNA[pos : pos + 28]:
+                
+                #determine what position the -10 CS starts
+                while DNA[pos : pos + len(tenCS)] != tenCS:
+                    pos += 1
+
+                pos += len(tenCS)
+                #if the Shine-Dalgarno sequence is found
+                if sdCS in DNA[pos : pos + 10]:
+                    
+                    #determine what position the Shine-Dalgarno sequence is found
+                    while DNA[pos : pos + len(sdCS)] != sdCS:
+                        pos += 1
+
+                    pos += len(sdCS)
+                    #if a start codon is found
+                    if startCodon in DNA[pos : pos + 10]:
+                        
+                        #deterimine what position the start codon is found
+                        while DNA[pos : pos + len(startCodon)] != startCodon:
+                            pos += 1
+                            
+                        startPos = pos
+                        #how large is the ORF
+                        while code[DNA[pos : pos + 3]] != stopCodon:
+                            pos += 1
+                            ORF += 1
+                            
+                        #if the ORF is above the threshold, store it
+                        if ORF >= ORFthreshold:
+                            endPos = startPos + ORF
+                            ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+
+            #if the -10 CS is not found, look for Shine-Dalgarno sequence
+            elif sdCS in DNA[pos : pos + 30]:
+                    
+                #determine what position the Shine-Dalgarno sequence is found
+                while DNA[pos : pos + len(sdCS)] != sdCS:
+                    pos += 1
+                    
+                pos += len(sdCS)
+                #if a start codon is found
+                if startCodon in DNA[pos : pos + 10]:
+                    
+                    #deterimine what position the start codon is found
+                    while DNA[pos : pos + len(startCodon)] != startCodon:
+                        pos += 1
+                        
+                    startPos = pos
+                    #how large is the ORF
+                    while code[DNA[pos : pos + 3]] != stopCodon:
+                        pos += 3
+                        ORF += 3
+                        
+                    #if the ORF is above the threshold, store it
+                    if ORF >= ORFthreshold:
+                        endPos = startPos + ORF
+                        ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+                        
+            #if the Shine-Dalgarno sequence is not found,look for a start codon
+            if startCodon in DNA[pos : pos + 40]:
+                    
+                #deterimine what position the start codon is found
+                while DNA[pos : pos + len(startCodon)] != startCodon:
+                    pos += 1
+                    
+                startPos = pos
+                #how large is the ORF
+                while code[DNA[pos : pos + 3]] != stopCodon:
+                    pos += 3
+                    ORF += 3
+                    
+                #if the ORF is above the threshold, store it
+                if ORF >= ORFthreshold:
+                    endPos = startPos + ORF
+                    ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+
+
+        #if the -35 CS is not found, look for the -10 CS
+        elif DNA[pos : pos + len(tenCS)] == tenCS:
+
+            pos += len(tenCS)
+            #if the Shine-Dalgarno sequence is found
+            if sdCS in DNA[pos : pos + 10]:
+                
+                #determine what position the Shine-Dalgarno sequence is found
+                while DNA[pos : pos + len(sdCS)] != sdCS:
+                    pos += 1
+
+                pos += len(sdCS)
+                #if a start codon is found
+                if startCodon in DNA[pos : pos + 10]:
+                    
+                    #deterimine what position the start codon is found
+                    while DNA[pos : pos + len(startCodon)] != startCodon:
+                        pos += 1
+                        
+                    startPos = pos
+                    #how large is the ORF
+                    while code[DNA[pos : pos + 3]] != stopCodon:
+                        pos += 3
+                        ORF += 3
+                        
+                    #if the ORF is above the threshold, store it
+                    if ORF >= ORFthreshold:
+                        endPos = startPos + ORF
+                        ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+
+            #if the Shine-Dalgarno sequence is not found, look for a start codon
+            elif startCodon in DNA[pos : pos + len(tenCS) + 11]:#############################
+                
+                #deterimine what position the start codon is found
+                while DNA[pos : pos + len(startCodon)] != startCodon:
+                    pos += 1
+                    
+                startPos = pos
+                #how large is the ORF
+                while code[DNA[pos : pos + 3]] != stopCodon:
+                    pos += 3
+                    ORF += 3
+                    
+                #if the ORF is above the threshold, store it
+                if ORF >= ORFthreshold:
+                    endPos = startPos + ORF
+                    ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+                        
+        #if the -10 CS is not found, look for the Shine-Dalgarno sequence
+        elif DNA[pos : pos + len(sdCS)] == sdCS:
+
+            pos += len(sdCS)
+            #if a start codon is found
+            if startCodon in DNA[pos : pos + 10]:
+                
+                #deterimine what position the start codon is found
+                while DNA[pos : pos + len(startCodon)] != startCodon:
+                    pos += 1
+                    
+                startPos = pos
+                #how large is the ORF
+                while code[DNA[pos : pos + 3]] != stopCodon:
+                    pos += 3
+                    ORF += 3
+                    
+                #if the ORF is above the threshold, store it
+                if ORF >= ORFthreshold:
+                    endPos = startPos + ORF
+                    ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+
+        #if the Shine-Dalgarno sequence is not found, look for a start codon
+        elif DNA[pos : pos + len(startCodon)] == startCodon:
+            
+            startPos = pos
+            #how large is the ORF
+            while code[DNA[pos : pos + 3]] != stopCodon:
+                pos += 3
+                ORF += 3
+                
+            #if the ORF is above the threshold, store it
+            if ORF >= ORFthreshold:
+                endPos = startPos + ORF
+                ORFlist.append('(' + str(startPos) + ', ' + str(endPos) + ')')
+
+        #increment position
+        pos += 1
+
+        #if no coding sections have been found, switch to complementary DNA sequence
+        if pos == len(DNA) - 191 and switch == False and ORFlist == []:
+            DNA = DNA[::-1]
+            pos = 0
+            switch = True
+            
+    #output
+    if ORFlist != []:
+        print 'Open Reading Frames'
+        print '(Start location, End location)'
+        print ORFlist
+    else:
+        print 'No open reading frames were greater than the threshold of ' + str(ORFthreshold) 
+
+
+
+def main():
+    
+    infile = open('finalData.txt', 'r')
+
+    #Read in the sequence name from the input file
+    sequenceName = infile.readline()
+    sequenceName = sequenceName[1:].rstrip('\n')
+
+    #Read in the sequence from the input file
+    sequence = infile.readline()
+    sequence = sequence.rstrip('\n')
+    print sequenceName
+    geneFinder(sequence)
+
+
+
+
+
+
+
+
+
+
+
+                               
