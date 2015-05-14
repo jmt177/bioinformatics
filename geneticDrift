@@ -1,0 +1,659 @@
+#Import math and random modules
+import random
+import operator
+import math
+def main():
+
+    '''Initialize all the variables needed
+    bp is a list containing all the base pairs
+
+    purineTransversion and pyrimidineTransversion are used in the mutation rate simulator
+
+    humanGenCount contains the current timestep the humans are on right now
+
+    chimpGenCount contains the current timestep the chimps are on right now
+
+    neanderthalGenCount contains the current timestep the neanderthals are on right now
+
+    sequenceLength contains the value of how long our DNA sequence is going to be
+
+    timeSteps contains the total number of timesteps our simulation is running
+
+    individuals contains the total number of individuals our simulation is running
+
+    humanCount, chimpCount, neanderthalCount tells us on which individual our simulation is currently on
+
+    tsProb contains the number we are going to use to simulate probability of
+        transitions, e.g, if we want to simulate 15/1000, tsProb value is 1000
+
+    tvProb is the same as tsProb but used instead for transversions
+
+    listOfHumans, listOfChimps, listOfNeanderthals is a list containing all the individuals in the current timestep
+
+    transitionHappened, transversionHappened, and firstIndividual are boolean values
+    which are used to check at what stage we are on our simulation '''
+    bp = ['A','C','G','T']
+    purineTransversion = ['C', 'T']
+    pyrimidineTransversion = ['A', 'G']
+    humanGenCount = 0
+    chimpGenCount = 0
+    neanderthalGenCount = 0
+    neanderthalSplit = 377
+    sequenceLength = 400
+    timeSteps = 500
+    individuals = 100
+    humanCount = 0
+    chimpCount = 0
+    neanderthalCount = 0
+    tsProb = 1000000
+    tvProb = 1000000
+    listOfHumans = []
+    listOfChimps = []
+    listOfNeanderthals = []
+    dnhList = []
+    transitionHappened = False
+    transversionHappened = False
+    firstIndividual = True
+
+    #Create two lists, each having 100 items in it that have the same DNA sequence
+    #We later use these lists to implement the divergence of humans/chimps/neanderthals
+    '''
+
+
+                                - - - - - - - - - - - - -(listOfChimps)
+                               -
+                              -
+                             -
+        commonAncestor      -
+                             -
+                              -                  ------(listOfNeanderthals)
+                               -                -
+                                - - - - - - - -
+                                                -
+                                                 -----------(listOfHumans)
+             
+
+    '''
+    originalSequence = ''
+    for basepair in range(sequenceLength):
+        originalSequence = originalSequence + random.choice(bp)
+    for i in range(individuals):
+        listOfHumans.append(originalSequence)
+        listOfChimps.append(originalSequence)
+
+    
+
+    #Create a structure to simulate the mutation rate of transitions, which is 39 per 1000000bp or 7.8x10^-5
+    transitionRandomList = []
+    for basepair in range(39):
+        transitionRandomList.append(random.randint(1,tsProb))
+
+    #Create a structure to simulate the mutation rate of transversions, which is 18 per 1000000bp or 36x10^-5
+    transversionRandomList = []
+    for basepair in range(18):
+        transversionRandomList.append(random.randint(1,tvProb))
+
+    deaminationRandomList = []
+    for basepair in range(5):
+        deaminationRandomList.append(random.randint(1,100))
+    
+
+    #Begin algorithm for the Chimps. For each timestep, implement genetic drift.
+    #Furthermore, on each timestep, on a 100 individuals, do the mutation simulation
+    for timestep in range(timeSteps):
+        chimpGenCount += 1
+
+        if chimpGenCount == 1:
+            totalChimpTransitions = 0
+            totalChimpTransversions = 0
+            totalChimpMutations = 0
+            totalChimpDoubleMutations = 0
+        '''Since there are fewer cases for Genetic Drift to happen if we implement the simulation
+        of Genetic Drift per timestep, we assume that it will have less effect than if the simulation
+        ran per generation. We chose to do this simulation per timestep to increase program speed'''
+        #Implementation of Genetic Drift.
+        #whoIsMyChimpDaddy contains the list of individuals who 
+        whoIsMyChimpDaddy = []
+        for individual in range(individuals):
+            whoIsMyChimpDaddy.append(random.randint(0,99))
+
+        #geneticDrift is a list that simulates how many parents' DNA sequences have been passed on
+        #to this current generation
+        geneticDrift = []
+        for daddy in whoIsMyChimpDaddy:
+            geneticDrift.append(listOfChimps[daddy])
+
+        listOfChimps = geneticDrift
+
+        #Now that Genetic Drift has been implemented, run the
+        #Mutation simulation for each individual in this current generation
+
+
+        #Initialize values to make output readable       
+        ''''''
+        for sequence in listOfChimps:
+            chimpCount += 1
+            
+            for basepair in range(sequenceLength):
+                '''
+                We simulate the transition mutation rate here, which is 39 transitions per 1,000,000bp
+                by using our previously initialized list, transitionRandomList, which contains 39 random integers
+                from 1 through 1,000,000. We run a loop through every basepair in our current sequence we are checking.
+                For every basepair, a random number between 1 and a 1,000,000 is created and the program then checks
+                through a series of if statements to see what current basepair(A,C,T,G) we are on and if the random
+                number we generated is in our list of 39 random integers we created initially. If it is, then change
+                the sequence to reflect the transition.
+                '''
+                randomNumber = random.randint(1,1000000)
+                if sequence[basepair] == 'A' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'G' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'G' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'A' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'T' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'C' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'C' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'T' + sequence[basepair+1:]
+                    transitionHappened = True
+
+                if transitionHappened:
+                    totalChimpTransitions += 1
+                    totalChimpMutations += 1
+
+
+                '''
+                We simulate the transversion mutation rate here, which is 18 transversions per 1,000,000bp
+                by using our previously initialized list, transversionRandomList, which contains 18 random integers
+                from 1 through 1,000,000. We run a loop through every basepair in our current sequence we are checking.
+                For every basepair, a random number between 1 and a 1,000,000 is created and the program then checks
+                through a series of if statements to see what current basepair(A,C,T,G) we are on and if the random
+                number we generated is in our list of 18 random integers we created initially. If it is, then change
+                the sequence to reflect the transition.
+                '''
+                #Randomize the randomNumber so that we can simulate transversion mutation rate
+                randomNumber = random.randint(1,1000000)
+                if sequence[basepair] == 'A' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(purineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'G' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(purineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'T' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(pyrimidineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'C' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(pyrimidineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+
+                if transversionHappened:
+                    totalChimpTransversions += 1
+                    totalChimpMutations += 1
+                    if transitionHappened:
+                        totalChimpDoubleMutations += 1
+                transitionHappened = False
+                transversionHappened = False
+            #Save the result back to listOfHumans
+            listOfChimps[chimpCount-1] = sequence
+
+        #Reset individual count so it can be used for next generation
+        chimpCount = 0
+
+        if chimpGenCount == 500:
+            print 'Now printing five chimps from current time [ timeStep 500 ]'
+            for chimp in range(5):
+                print 'Chimp ' + str(chimp+1) + ': \n \n'
+                print listOfChimps[chimp] + '\n\n'
+                
+
+        if chimpGenCount == 500:
+            chimpPositiveAvgEvoDist = float(0)
+            chimpNegativeAvgEvoDist = float(0)
+            for indv in listOfChimps:
+                chimpTransversions = 0
+                chimpTransitions = 0
+                outputCounter = -1
+                chimpEvoDist = float(0)
+                for basepair in indv:
+                    outputCounter += 1
+                    if basepair != originalSequence[outputCounter]:
+                        if basepair == 'A':
+                            if originalSequence[outputCounter] in purineTransversion:
+                                chimpTransversions += 1
+                            if originalSequence[outputCounter] == 'G':
+                                chimpTransitions += 1
+                        if basepair == 'C':
+                            if originalSequence[outputCounter] in pyrimidineTransversion:
+                                chimpTransversions += 1
+                            if originalSequence[outputCounter] == 'T':
+                                chimpTransitions += 1
+                        if basepair == 'G':
+                            if originalSequence[outputCounter] in purineTransversion:
+                                chimpTransversions += 1
+                            if originalSequence[outputCounter] == 'A':
+                                chimpTransitions += 1
+                        if basepair == 'T':
+                            if originalSequence[outputCounter] in pyrimidineTransversion:
+                                chimpTransversions += 1
+                            if originalSequence[outputCounter] == 'C':
+                                chimpTransitions += 1
+                #Implementation of error rate of 1.2 transversions per 400bp
+                chimpTransversionsPositiveRange = float(chimpTransversions*1.003)
+                chimpTransversionsNegativeRange = float(chimpTransversions*.997)
+                v = operator.truediv(chimpTransversionsPositiveRange,sequenceLength)
+                vv = operator.truediv(chimpTransversionsNegativeRange,sequenceLength)
+                chimpPositiveEvoDist = -.25*math.log(1-2*v)
+                chimpPositiveAvgEvoDist += chimpPositiveEvoDist
+                chimpNegativeEvoDist = -.25*math.log(1-2*vv)
+                chimpNegativeAvgEvoDist += chimpNegativeEvoDist
+            chimpPositiveAvgEvoDist /= 100
+            chimpNegativeAvgEvoDist /= 100
+            dC = float(chimpPositiveAvgEvoDist + chimpNegativeEvoDist)
+            dC = dC/2
+            print str(dC) + ' is the dC'
+
+    #Begin algorithm for the Humans. For each timestep, implement genetic drift.
+    #Furthermore, on each timestep, on a 100 individuals, do the mutation simulation
+    for timestep in range(timeSteps):
+        humanGenCount += 1
+        if humanGenCount == 1:
+            totalTransitions = 0
+            totalTransversions = 0
+            totalMutations = 0
+            totalDoubleMutations = 0
+        if humanGenCount == neanderthalSplit:
+            for human in listOfHumans:
+                listOfNeanderthals.append(human)
+                dnhList.append(human)
+        
+        '''Since there are fewer cases for Genetic Drift to happen if we implement the simulation
+        of Genetic Drift per timestep, we assume that it will have less effect than if the simulation
+        ran per generation. We chose to do this simulation per timestep to increase program speed'''
+        #Implementation of Genetic Drift
+        whoIsMyDaddy = []
+        for individual in range(individuals):
+            whoIsMyDaddy.append(random.randint(0,99))
+
+        #geneticDrift is a list that simulates how many parents' DNA sequences have been passed on
+        #to this current generation
+        geneticDrift = []
+        for daddy in whoIsMyDaddy:
+            geneticDrift.append(listOfHumans[daddy])
+
+        listOfHumans = geneticDrift
+
+        #Now that Genetic Drift has been implemented, run the
+        #Mutation simulation for each individual in this current generation
+
+        
+        for sequence in listOfHumans:
+            humanCount += 1
+            
+            for basepair in range(sequenceLength):
+                '''
+                We simulate the transition mutation rate here, which is 39 transitions per 1,000,000bp
+                by using our previously initialized list, transitionRandomList, which contains 39 random integers
+                from 1 through 1,000,000. We run a loop through every basepair in our current sequence we are checking.
+                For every basepair, a random number between 1 and a 1,000,000 is created and the program then checks
+                through a series of if statements to see what current basepair(A,C,T,G) we are on and if the random
+                number we generated is in our list of 39 random integers we created initially. If it is, then change
+                the sequence to reflect the transition.
+                '''
+                randomNumber = random.randint(1,1000000)
+                if sequence[basepair] == 'A' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'G' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'G' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'A' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'T' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'C' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'C' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'T' + sequence[basepair+1:]
+                    transitionHappened = True
+
+                if transitionHappened:
+                    totalTransitions += 1
+                    totalMutations += 1
+
+                '''
+                We simulate the transversion mutation rate here, which is 18 transversions per 1,000,000bp
+                by using our previously initialized list, transversionRandomList, which contains 18 random integers
+                from 1 through 1,000,000. We run a loop through every basepair in our current sequence we are checking.
+                For every basepair, a random number between 1 and a 1,000,000 is created and the program then checks
+                through a series of if statements to see what current basepair(A,C,T,G) we are on and if the random
+                number we generated is in our list of 18 random integers we created initially. If it is, then change
+                the sequence to reflect the transition.
+                '''
+                randomNumber = random.randint(1,1000000)
+                if sequence[basepair] == 'A' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(purineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'G' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(purineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'T' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(pyrimidineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'C' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(pyrimidineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+
+                if transversionHappened:
+                    totalTransversions += 1
+                    totalMutations += 1
+                    if transitionHappened:
+                        totalDoubleMutations += 1
+                transitionHappened = False
+                transversionHappened = False
+            #Save the result back to listOfHumans
+            listOfHumans[humanCount-1] = sequence
+
+        #Reset individual count so it can be used for next generation
+        humanCount = 0
+        
+
+        #Finding evolutionary distance of every human at timestep 500 from its originalSequence
+
+        if humanGenCount == 500:
+            print 'Now printing five humans from current time [ timeStep 500 ]'
+            for human in range(5):
+                print 'Human ' + str(human+1) + ': \n \n'
+                print listOfHumans[human] + '\n\n'
+
+        if humanGenCount == 500:
+            humanPositiveAvgEvoDist = float(0)
+            humanNegativeAvgEvoDist = float(0)
+            for indv in listOfHumans:
+                humanTransversions = 0
+                humanTransitions = 0
+                outputCounter = -1
+                humanEvoDist = float(0)
+                for basepair in indv:
+                    outputCounter += 1
+                    if basepair != originalSequence[outputCounter]:
+                        if basepair == 'A':
+                            if originalSequence[outputCounter] in purineTransversion:
+                                humanTransversions += 1
+                            if originalSequence[outputCounter] == 'G':
+                                humanTransitions += 1
+                        if basepair == 'C':
+                            if originalSequence[outputCounter] in pyrimidineTransversion:
+                                humanTransversions += 1
+                            if originalSequence[outputCounter] == 'T':
+                                humanTransitions += 1
+                        if basepair == 'G':
+                            if originalSequence[outputCounter] in purineTransversion:
+                                humanTransversions += 1
+                            if originalSequence[outputCounter] == 'A':
+                                humanTransitions += 1
+                        if basepair == 'T':
+                            if originalSequence[outputCounter] in pyrimidineTransversion:
+                                humanTransversions += 1
+                            if originalSequence[outputCounter] == 'C':
+                                humanTransitions += 1
+                #Implementation of error rate of 1.2 transversions per 400bp
+                humanTransversionsPositiveRange = float(humanTransversions*1.003)
+                humanTransversionsNegativeRange = float(humanTransversions*.997)
+                v = operator.truediv(humanTransversionsPositiveRange,sequenceLength)
+                vv = operator.truediv(humanTransversionsNegativeRange,sequenceLength)
+                humanPositiveEvoDist = -.25*math.log(1-2*v)
+                humanPositiveAvgEvoDist += humanPositiveEvoDist
+                humanNegativeEvoDist = -.25*math.log(1-2*vv)
+                humanNegativeAvgEvoDist += humanNegativeEvoDist
+            humanPositiveAvgEvoDist /= 100
+            humanNegativeAvgEvoDist /= 100
+            dH = float(humanPositiveAvgEvoDist + humanNegativeEvoDist)
+            dH = dH/2
+            print str(dH) + ' is the dH'
+
+            #Now calculating dHC, average evolutionary distance between common ancestor and
+            #chimps to common ancestor and humans
+            dhC = float(dC + dH)
+            dhC = dhC/2
+            print str(dhC) + ' is the dHC value'
+
+    '''          
+    Begin algorithm for the Neanderthals. For each timestep, implement genetic drift.
+    Furthermore, on each timestep, on a 100 individuals, do the mutation simulation
+    117 was used in range because 494th timestep is 40,000 years ago. Therefore, the
+    neanderthal loop needs to run from generation 377 to 494 which is 117 total generations.
+    '''
+    for timestep in range(117):
+        neanderthalGenCount += 1
+
+        if neanderthalGenCount == 1:
+            totalNeanderthalTransitions = 0
+            totalNeanderthalTransversions = 0
+            totalNeanderthalMutations = 0
+            totalNeanderthalDoubleMutations = 0
+
+        whoIsMyNeanderthalDaddy = []
+        for individual in range(individuals):
+            whoIsMyNeanderthalDaddy.append(random.randint(0,99))
+
+        #geneticDrift is a list that simulates how many parents' DNA sequences have been passed on
+        #to this current generation
+        geneticDrift = []
+        for daddy in whoIsMyNeanderthalDaddy:
+            geneticDrift.append(listOfNeanderthals[daddy])
+
+        listOfNeanderthals = geneticDrift
+
+        #Now that Genetic Drift has been implemented, run the
+        #Mutation simulation for each individual in this current generation
+        
+        for sequence in listOfNeanderthals:
+            neanderthalCount += 1
+            deaminationCount = 0
+            
+            for basepair in range(sequenceLength):
+                '''
+                We simulate the transition mutation rate here, which is 39 transitions per 1,000,000bp
+                by using our previously initialized list, transitionRandomList, which contains 39 random integers
+                from 1 through 1,000,000. We run a loop through every basepair in our current sequence we are checking.
+                For every basepair, a random number between 1 and a 1,000,000 is created and the program then checks
+                through a series of if statements to see what current basepair(A,C,T,G) we are on and if the random
+                number we generated is in our list of 39 random integers we created initially. If it is, then change
+                the sequence to reflect the transition.
+                '''
+                randomNumber = random.randint(1,1000000)
+                if sequence[basepair] == 'A' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'G' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'G' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'A' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'T' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'C' + sequence[basepair+1:]
+                    transitionHappened = True
+                elif sequence[basepair] == 'C' and randomNumber in transitionRandomList:
+                    sequence = sequence[:basepair] + 'T' + sequence[basepair+1:]
+                    transitionHappened = True
+
+                if transitionHappened:
+                    totalNeanderthalTransitions += 1
+                    totalNeanderthalMutations += 1
+
+
+                '''
+                We simulate the transversion mutation rate here, which is 18 transversions per 1,000,000bp
+                by using our previously initialized list, transversionRandomList, which contains 18 random integers
+                from 1 through 1,000,000. We run a loop through every basepair in our current sequence we are checking.
+                For every basepair, a random number between 1 and a 1,000,000 is created and the program then checks
+                through a series of if statements to see what current basepair(A,C,T,G) we are on and if the random
+                number we generated is in our list of 18 random integers we created initially. If it is, then change
+                the sequence to reflect the transition.
+                '''
+                randomNumber = random.randint(1,1000000)
+                if sequence[basepair] == 'A' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(purineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'G' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(purineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'T' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(pyrimidineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+                elif sequence[basepair] == 'C' and randomNumber in transversionRandomList:
+                    sequence = sequence[:basepair] + random.choice(pyrimidineTransversion) + sequence[basepair+1:]
+                    transversionHappened = True
+
+
+                #Simulating the error rate of deamination (5% or 5 per 100bp) at the last generation
+                #Commenting out the deamination error rate process because it drastically changes the evolutionary distance of the Neanderthals from
+                #377 to 494 timesteps. We are still including the code as to how to implement this deamination process
+                '''
+                if neanderthalGenCount == 117:
+                    deaminationRandomNumber = random.randint(1,100)
+                    if sequence[basepair] == 'C' and deaminationRandomNumber in deaminationRandomList:
+                        deaminationCount += 1
+                        sequence = sequence[:basepair] + 'T' + sequence[basepair+1:]
+                    if sequence[basepair] == 'G' and deaminationRandomNumber in deaminationRandomList:
+                        sequence = sequence[:basepair] + 'A' + sequence[basepair+1:]
+                        deaminationCount += 1
+                '''
+
+                if transversionHappened:
+                    totalNeanderthalTransversions += 1
+                    totalNeanderthalMutations += 1
+                    if transitionHappened:
+                        totalDoubleMutations += 1
+                transitionHappened = False
+                transversionHappened = False
+            #Save the result back to listOfNeandertals
+            listOfNeanderthals[neanderthalCount-1] = sequence
+            
+        #Reset individual count so it can be used for next generation
+        neanderthalCount = 0
+
+        if neanderthalGenCount == 1:
+            print 'Now printing five neanderthals from around 799,500 years ago [timeStep 377]'
+            for neanderthal in range(5):
+                print 'Neanderthal ' + str(neanderthal+1) + ': \n\n'
+                print listOfNeanderthals[neanderthal] + '\n\n'
+
+        if neanderthalGenCount == 117:
+            print 'Now printing five neanderthals from 40,000 years ago [timeStep 494]'
+            for neanderthal in range(5):
+                print 'Neanderthal ' + str(neanderthal+1) + ': \n \n'
+                print listOfNeanderthals[neanderthal] + '\n \n'
+
+        '''
+        if neanderthalGenCount == 117:
+            neanderthalCommonPositiveAvgEvoDist = float(0)
+            neanderthalCommonNegativeAvgEvoDist = float(0)
+            for indv in listOfNeanderthals:
+                neanderthalTransversions = 0
+                neanderthalTransitions = 0
+                outputCounter = -1
+                neanderthalCommonEvoDist = float(0)
+                for basepair in indv:
+                    outputCounter += 1
+                    if basepair != originalSequence[outputCounter]:
+                        if basepair == 'A':
+                            if originalSequence[outputCounter] in purineTransversion:
+                                neanderthalTransversions += 1
+                            if originalSequence[outputCounter] == 'G':
+                                neanderthalTransitions += 1
+                        if basepair == 'C':
+                            if originalSequence[outputCounter] in pyrimidineTransversion:
+                                neanderthalTransversions += 1
+                            if originalSequence[outputCounter] == 'T':
+                                neanderthalTransitions += 1
+                        if basepair == 'G':
+                            if originalSequence[outputCounter] in purineTransversion:
+                                neanderthalTransversions += 1
+                            if originalSequence[outputCounter] == 'A':
+                                neanderthalTransitions += 1
+                        if basepair == 'T':
+                            if originalSequence[outputCounter] in pyrimidineTransversion:
+                                neanderthalTransversions += 1
+                            if originalSequence[outputCounter] == 'C':
+                                neanderthalTransitions += 1
+                #Implementation of error rate of 1.2 transversions per 400bp
+                neanderthalCommonTransversionsPositiveRange = float(neanderthalTransversions*1.003)
+                neanderthalCommonTransversionsNegativeRange = float(neanderthalTransversions*.997)
+                v = operator.truediv(neanderthalCommonTransversionsPositiveRange,sequenceLength)
+                vv = operator.truediv(neanderthalCommonTransversionsNegativeRange,sequenceLength)
+                neanderthalCommonPositiveEvoDist = -.25*math.log(1-2*v)
+                neanderthalCommonPositiveAvgEvoDist += neanderthalCommonPositiveEvoDist
+                neanderthalCommonNegativeEvoDist = -.25*math.log(1-2*vv)
+                neanderthalCommonNegativeAvgEvoDist += neanderthalCommonNegativeEvoDist
+            neanderthalCommonPositiveAvgEvoDist /= 100
+            neanderthalCommonNegativeAvgEvoDist /= 100
+            dNeanderthal = float(neanderthalCommonPositiveAvgEvoDist + neanderthalCommonNegativeEvoDist)
+            dNeanderthal = dNeanderthal/2
+            print str(dNeanderthal) + ' is the dNeanderthal'
+        '''
+
+        #Finding evolutionary distance of every Neanderthal at timestep 494 from its dnhList(when the neanderthals and neanderthals split)
+        if neanderthalGenCount == 117:
+            neanderthalPositiveAvgEvoDist = float(0)
+            neanderthalNegativeAvgEvoDist = float(0)
+            neanderthalDnhCounter = -1
+            for indv in listOfNeanderthals:
+                neanderthalDnhCounter += 1
+                neanderthalTransversions = 0
+                neanderthalTransitions = 0
+                outputCounter = -1
+                for basepair in indv:
+                    outputCounter += 1
+                    if basepair != dnhList[neanderthalDnhCounter][outputCounter]:
+                        if basepair == 'A':
+                            if dnhList[neanderthalDnhCounter][outputCounter] in purineTransversion:
+                                neanderthalTransversions += 1
+                            if dnhList[neanderthalDnhCounter][outputCounter] == 'G':
+                                neanderthalTransitions += 1
+                        if basepair == 'C':
+                            if dnhList[neanderthalDnhCounter][outputCounter] in pyrimidineTransversion:
+                                neanderthalTransversions += 1
+                            if dnhList[neanderthalDnhCounter][outputCounter] == 'T':
+                                neanderthalTransitions += 1
+                        if basepair == 'G':
+                            if dnhList[neanderthalDnhCounter][outputCounter] in purineTransversion:
+                                neanderthalTransversions += 1
+                            if dnhList[neanderthalDnhCounter][outputCounter] == 'A':
+                                neanderthalTransitions += 1
+                        if basepair == 'T':
+                            if dnhList[neanderthalDnhCounter][outputCounter] in pyrimidineTransversion:
+                                neanderthalTransversions += 1
+                            if dnhList[neanderthalDnhCounter][outputCounter] == 'C':
+                                neanderthalTransitions += 1
+                #Implementation of error rate of 1.2 transversions per 400bp
+                neanderthalTransversionsPositiveRange = float(neanderthalTransversions*1.003)
+                neanderthalTransversionsNegativeRange = float(neanderthalTransversions*.997)
+                v = operator.truediv(neanderthalTransversionsPositiveRange,sequenceLength)
+                vv = operator.truediv(neanderthalTransversionsNegativeRange,sequenceLength)
+                neanderthalPositiveEvoDist = -.25*math.log(1-2*v)
+                neanderthalPositiveAvgEvoDist += neanderthalPositiveEvoDist
+                neanderthalNegativeEvoDist = -.25*math.log(1-2*vv)
+                neanderthalNegativeAvgEvoDist += neanderthalNegativeEvoDist
+            neanderthalPositiveAvgEvoDist /= 100
+            neanderthalNegativeAvgEvoDist /= 100
+            dnH = float(neanderthalPositiveAvgEvoDist + neanderthalNegativeEvoDist)
+            dnH = dnH/2
+            print str(dnH) + ' is the dNH'
+
+
+    #We are calibrating the molecular clock, by using ratio equalities. Our ratio equality is:
+    #dnH / timeSteps = dhC / 500, and we solve for timeSteps
+
+    years = float(dhC / 500)
+    years = dnH / years
+    years = years * 6500
+    #Add 20,000 years to account for Neanderthals dying 40,000 years ago
+    years = years + 20000
+    print 'The time since Neanderthals split is: ' + str(years)
+    
+
+
+
+
+
+        
+        
+
+main()
